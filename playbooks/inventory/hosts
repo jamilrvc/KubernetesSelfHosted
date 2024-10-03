@@ -1,0 +1,10 @@
+[masters]
+master01 ansible_host=192.168.121.141 interface_name=eth1 ip_address=192.168.200.101 netmask=255.255.255.0 gateway=192.168.200.1 dns1=8.8.8.8 dns2=8.8.4.4
+[workers]
+worker01 ansible_host=192.168.121.152 interface_name=eth1 ip_address=192.168.200.102 netmask=255.255.255.0 gateway=192.168.200.1 dns1=8.8.8.8 dns2=8.8.4.4
+#worker02 ansible_host=192.168.121.26 interface_name=eth1 ip_address=192.168.200.103 netmask=255.255.255.0 gateway=192.168.200.1 dns1=8.8.8.8 dns2=8.8.4.4
+
+
+[all:vars]
+ansible_user=vagrant
+ansible_private_key_file=~/.vagrant.d/insecure_private_key

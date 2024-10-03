@@ -1,0 +1,72 @@
+---
+# sks file for kubeadm
+- name: Habilitar forwarding 
+  copy:
+    dest: /etc/sysctl.d/k8s.conf
+    content: |
+      net.ipv4.ip_forward = 1
+  tags: networking
+- name: Apply forwarding
+  command:  sysctl --system
+  tags: networking
+- name: Set up docker repository
+  apt:
+    pkg:
+    - ca-certificates
+    - curl
+    update_cache: yes
+  tags: repository
+- name: Set the keyrings
+  command: install -m 0755 -d /etc/apt/keyrings
+  tags: repository
+- name: Get de gpg key
+  command: curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+  tags: repository
+- name: Set permissions
+  file:
+    path: /etc/apt/keyrings/docker.asc
+    mode: a+r
+  tags: repository
+- name: Add the Docker repository to source.list.d
+  shell: |
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+    $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
+    tee /etc/apt/sources.list.d/docker.list > /dev/null
+  tags: repository
+- name: Update packages
+  apt:
+    update_cache: yes
+  tags: repository
+- name: Install containerd.io
+  apt:
+    name: containerd.io
+  tags: repositorySystemdCgroup
+
+- name: Enable cri pluging
+  copy:
+    src: containerd.toml
+    dest: /etc/containerd/config.toml
+  notify: Restart containerd  
+- name: Enable cri pluging
+  lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^disabled_plugins = \["cri"\]'
+    line: '#disabled_plugins = ["cri"]'
+    state: present
+  notify: Restart containerd
+# - name: Set up cgroups systemd
+#   blockinfile:
+#     path: /etc/containerd/config.toml
+#     block: |
+#       [plugins."io.containerd.grpc.v1.cri"]
+#         sandbox_image = "registry.k8s.io/pause:3.9"
+#         [plugins."io.containerd.grpc.v1.cri".containerd]
+#           snapshotter = "overlayfs"
+#           [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+#             [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+#               SystemdCgroup = true
+  # tags: repository
+  # notify: Restart container
+
+- include_tasks: install-k8s.yml
+- include_tasks: create-cluster.yml

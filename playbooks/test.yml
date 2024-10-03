@@ -1,0 +1,17 @@
+- name: Configure network interfaces
+  hosts: all
+  become: True
+  vars:
+    internet_interface_name: eth0
+    internal_interface_name: "{{ hostvars[inventory_hostname]['interface_name'] }}"
+    ip_address: "{{ hostvars[inventory_hostname]['ip_address'] }}"
+    netmask: "{{ hostvars[inventory_hostname]['netmask'] }}"
+    gateway: "{{ hostvars[inventory_hostname]['gateway'] }}"
+    dns1: "{{ hostvars[inventory_hostname]['dns1'] }}"
+    dns2: "{{ hostvars[inventory_hostname]['dns2'] }}"
+  tasks:
+    - name: restart networking
+      service:
+        name: networking
+        state: restarted
+  

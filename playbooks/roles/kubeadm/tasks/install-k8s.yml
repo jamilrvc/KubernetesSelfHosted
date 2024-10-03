@@ -1,0 +1,48 @@
+---
+- name: Install previous packages
+  apt:
+    pkg:
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - gpg
+    update_cache: yes
+  tags: kubeadm
+- name: Ensure keyrings directory exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  tags: kubeadm
+- name: Check if the Kubernetes GPG keyring file exists
+  stat:
+    path: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  register: kubernetes_keyring
+  tags: kubeadm
+- name: Download and install Kubernetes GPG key
+  when: not kubernetes_keyring.stat.exists
+  shell: | 
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  tags: kubeadm
+- name: Add Kubernetes APT repository
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /"
+    state: present
+  tags: kubeadm
+- name: Install kubeadm stack
+  apt:
+    pkg:
+    - kubelet
+    - kubeadm
+    - kubectl
+    update_cache: yes
+  tags: kubeadm
+- name: Mantener las versiones del stack de kubeadm
+  command: apt-mark hold kubelet kubeadm kubectl
+  tags: kubeadm
+- name: Enable kubelet
+  service:
+    name: kubelet
+    state: started
+    enabled: yes
+  tags: kubeadm
