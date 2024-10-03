@@ -1,0 +1,194 @@
+# - name: Configure network interfaces
+#   hosts: all
+#   gather_facts: False
+#   become: True
+#   vars:
+#     internet_interface_name: eth0
+#     internal_interface_name: "{{ hostvars[inventory_hostname]['interface_name'] }}"
+#     ip_address: "{{ hostvars[inventory_hostname]['ip_address'] }}"
+#     netmask: "{{ hostvars[inventory_hostname]['netmask'] }}"
+#     gateway: "{{ hostvars[inventory_hostname]['gateway'] }}"
+#     dns1: "{{ hostvars[inventory_hostname]['dns1'] }}"
+#     dns2: "{{ hostvars[inventory_hostname]['dns2'] }}"
+#   tasks:
+    # - name: Configure interfaces master
+    #   template:
+    #    src: interfaces.j2
+    #    dest: /etc/network/interfaces
+    #   notify: restart networking
+    #   tags: networking
+
+  #   - name: Configure the hosts file
+  #     template:
+  #       src: hots.j2
+  #       dest: /etc/hosts
+  #     tags: networking  
+
+  # handlers:
+
+  #   - name: restart networking 
+  #     service:
+  #       name: networking
+  #       state: restarted
+
+  
+- name: Install packages beforte to start kubernetes install
+  become: True
+  hosts: all
+  gather_facts: False
+  tasks:
+
+    - name: Habilitar forwarding 
+      copy:
+        dest: /etc/sysctl.d/k8s.conf
+        content: |
+          net.ipv4.ip_forward = 1
+      tags: networking
+
+    - name: Apply forwarding
+      command:  sysctl --system
+      tags: networking
+
+    - name: Set up docker repository
+      apt:
+        pkg:
+        - ca-certificates
+        - curl
+        update_cache: yes
+      tags: repository
+      
+    - name: Set the keyrings
+      command: install -m 0755 -d /etc/apt/keyrings
+      tags: repository
+
+    - name: Get de gpg key
+      command: curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+      tags: repository
+
+    - name: Set permissions
+      file:
+        path: /etc/apt/keyrings/docker.asc
+        mode: a+r
+      tags: repository
+
+    - name: Add the Docker repository to source.list.d
+      shell: |
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+        $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
+        tee /etc/apt/sources.list.d/docker.list > /dev/null
+      tags: repository
+
+    - name: Update packages
+      apt:
+        update_cache: yes
+      tags: repository
+
+    - name: Install containerd.io
+      apt:
+        name: containerd.io
+      tags: repository
+    
+    # - name: Enable cri pluging
+    #   lineinfile:
+    #     path: /etc/containerd/config.toml
+    #     regexp: '^disabled_plugins = \["cri"\]'
+    #     line: '#disabled_plugins = ["cri"]'
+    #     state: present
+    
+
+    - name: Set up cgroups systemd
+      file:
+        path: /etc/containerd/config.toml
+        src: config.toml
+        state: file
+      tags: repository
+      notify: Restart containerd
+
+  handlers:
+
+    - name: Restart containerd
+      service:
+        name: containerd
+        state: restarted
+
+- name: Install kubeadm
+  become: True
+  gather_facts: False
+  hosts: all
+  tasks:
+
+    - name: Install previous packages
+      apt:
+        pkg:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gpg
+        update_cache: yes
+      tags: kubeadm
+
+    - name: Ensure keyrings directory exists
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+      tags: kubeadm
+
+    - name: Check if the Kubernetes GPG keyring file exists
+      stat:
+        path: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      register: kubernetes_keyring
+      tags: kubeadm
+
+    - name: Download and install Kubernetes GPG key
+      when: not kubernetes_keyring.stat.exists
+      shell: | 
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      tags: kubeadm
+
+    - name: Add Kubernetes APT repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /"
+        state: present
+      tags: kubeadm
+
+    # - name: Get the gpg key for repository
+    #   shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    #   tags: test
+
+    # - name: Add the repository
+    #   shell: echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+    #   tags: test
+
+    - name: Install kubeadm stack
+      apt:
+        pkg:
+        - kubelet
+        - kubeadm
+        - kubectl
+        update_cache: yes
+      tags: kubeadm
+
+    - name: Mantener las versiones del stack de kubeadm
+      command: apt-mark hold kubelet kubeadm kubectl
+      tags: kubeadm
+
+    - name: Enable kubelet
+      service:
+        name: kubelet
+        state: started
+        enabled: yes
+      tags: kubeadm
+
+# - name: inicializar el clúster de kubernetes
+#   hosts: masters
+    
+
+        
+
+
+
+
+
+
+    

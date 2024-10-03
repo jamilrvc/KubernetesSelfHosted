@@ -1,0 +1,12 @@
+auto lo
+iface lo inet loopback
+
+auto {{ internet_interface_name }}
+iface {{ internet_interface_name }} inet dhcp
+
+auto {{ internal_interface_name }}
+iface {{ internal_interface_name }} inet static
+    address {{ ip_address }}
+    netmask {{ netmask }}
+    dns-nameservers {{ dns1 }} {{ dns2 }}
+

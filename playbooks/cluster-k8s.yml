@@ -1,0 +1,6 @@
+- name: Create the cluster
+  hosts: all
+  become: true
+  gather_facts: False
+  roles:
+    - role: kubeadm

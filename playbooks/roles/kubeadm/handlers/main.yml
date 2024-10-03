@@ -1,0 +1,9 @@
+---
+# handlers file for kubeadm
+- name: Restart containerd
+  service:
+    name: containerd
+    state: restarted
+- name: Set the default config
+  become: true
+  shell: containerd config default > /etc/containerd/config.toml

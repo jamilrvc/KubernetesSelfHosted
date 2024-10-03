@@ -1,0 +1,5 @@
+
+{% for host in groups.all %}
+{{ hostvars[host]["ip_address"] }} {{ host }}
+{% endfor %}
+ 
